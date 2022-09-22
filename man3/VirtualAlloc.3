@@ -1,0 +1,63 @@
+.TH VirtiualFree 3 2022-Sep-22 "WIN32" "Microsoft Windows Win32 API Documentation"
+.\" ================================================================
+.SH NAME
+.\" ================================================================
+
+VirtualAlloc, VirtualFree \- allocate and free region of pages in virtual address space
+
+.\" ================================================================
+.SH SYNOPSIS
+.\" ================================================================
+
+.nf
+.B #include <memoryapi.h>
+.PP
+LPVOID VirtualAlloc(LPVOID \fIlpAddress\fR, SIZE_T \fIdwSize\fR, DWORD \fIflAllocationType\fR, DWORD \fIflProtect\fR);
+.PP
+BOOL   VirtualFree(LPVOID \fIlpAddress\fR, SIZE_T \fIdwSize\fR, DWORD \fIdwFreeType\fR)
+.PP
+.nf
+
+.\" ================================================================
+.SH DESCRIPTION
+.\" ================================================================
+
+The 
+.BR VirtualAlloc () 
+function reserves, commits, or changes the state of a region of pages in the virtual address space of the calling process.
+Memory allocated by this function is automatically \fIinitialized to zero\fR.
+
+The
+.BR VirtualFree ()
+function releases, decommits, or releases and decommits a region of pages within the virtual address space of the calling process.
+
+.SH VirtualAlloc() PARAMETERS
+
+\fIlpAddress\fR is a pointer to the base address of the region of pages to be freed.
+If \fIdwFreeType\fR parameter is \fBMEM_RELEASE\fR, this parameter must be the base address returned by VirtualAlloc () when the region
+of pages is reserved
+
+.PP
+.PP
+\fIdwSize\fR is the size of the region of memory to be freed, \fBin bytes\fR.
+.PP
+If the \fIdwFreeType\fR parameter is \fBMEM_RELEASE\fR, this parameter must be \fB0 (zero)\fR.
+
+.\" ================================================================
+.SH REQUIREMENTS
+.\" ================================================================
+.TS
+allbox;
+l l l.
+Header	Library	DLL
+memoryapi.h (include Windows.h, Memoryapi.h)	onecore.lib	Kernel32.dll
+.TE
+
+.\" ================================================================
+.SH SEE ALSO
+.\" ================================================================
+.nh
+.BR VirtualAllocEx (3),
+.BR VirtualFreeEx (3)
+
+.fi
