@@ -1,0 +1,89 @@
+.TH MSG 3 2022-Sep-23 "WIN32" "Microsoft Windows Win32 API Documentation"
+.\" ================================================================
+.SH NAME
+.\" ================================================================
+
+MSG \- Contains message information from a thread's message queue.
+
+.\" ================================================================
+.SH SYNTAX
+.\" ================================================================
+
+.nf
+typedef struct tagMSG {
+  HWND   hwnd;
+  UINT   message;
+  WPARAM wParam;
+  LPARAM lParam;
+  DWORD  time;
+  POINT  pt;
+  DWORD  lPrivate;
+} MSG, *PMSG, *NPMSG, *LPMSG;
+.nf
+
+.\" ================================================================
+.SH MEMBERS
+.\" ================================================================
+
+HWND hwnd
+.PP
+.RS
+A handle to the window whose window procedure receives the message. This member is NULL when the message is a thread message.
+.RE
+
+UINT message
+.PP
+.RS
+The message identifier. Applications can only use the low word; the high word is reserved by the system.
+.RE
+
+WPARAM wParam
+.PP
+.RS
+Additional information about the message. The exact meaning depends on the value of the message member.
+.RE
+
+LPARAM lParam
+.PP
+.RS
+Additional information about the message. The exact meaning depends on the value of the message member.
+.RE
+
+DWORD time
+.PP
+.RS
+The time at which the message was posted.
+.RE
+
+POINT pt
+.PP
+.RS
+The cursor position, in screen coordinates, when the message was posted.
+.RE
+
+DWORD lPrivate
+.PP
+.RS
+Reserved.
+.RE
+
+.\" ================================================================
+.SH REQUIREMENTS
+.\" ================================================================
+.TS
+allbox;
+l l.
+Minimum supported client	Windows 2000 Professional [desktop apps | UWP apps]
+Minimum supported server	Windows 2000 Server [desktop apps | UWP apps]
+Header	winuser.h (include Windows.h)
+.TE
+
+.\" ================================================================
+.SH SEE ALSO
+.\" ================================================================
+.nh
+.BR GetMessage (3),
+.BR PeekMessage (3),
+.BR PostThreadMessage (3)
+
+.fi
