@@ -1,3 +1,4 @@
+'\" t
 .TH VirtiualFree 3 2022-Sep-22 "WIN32" "Microsoft Windows Win32 API Documentation"
 .\" ================================================================
 .SH NAME
@@ -14,43 +15,221 @@ VirtualAlloc, VirtualFree \- allocate and free region of pages in virtual addres
 .PP
 LPVOID VirtualAlloc(LPVOID \fIlpAddress\fR, SIZE_T \fIdwSize\fR, DWORD \fIflAllocationType\fR, DWORD \fIflProtect\fR);
 .PP
-BOOL   VirtualFree(LPVOID \fIlpAddress\fR, SIZE_T \fIdwSize\fR, DWORD \fIdwFreeType\fR)
-.PP
 .nf
 
 .\" ================================================================
 .SH DESCRIPTION
 .\" ================================================================
 
-The 
-.BR VirtualAlloc () 
-function reserves, commits, or changes the state of a region of pages in the virtual address space of the calling process.
+The VirtualAlloc(3) function reserves, commits, or changes the state of a region of pages in the virtual address space of the calling process.
 Memory allocated by this function is automatically \fIinitialized to zero\fR.
 
-The
-.BR VirtualFree ()
-function releases, decommits, or releases and decommits a region of pages within the virtual address space of the calling process.
+.\" ================================================================
+.SH PARAMETERS
+.\" ================================================================
 
-.SH VirtualAlloc() PARAMETERS
+.SS lpAddress
+The starting address of the region to allocate. If the memory is being reserved, the specified address is rounded down to the
+nearest multiple of the allocation granularity. If the memory is already reserved and is being committed, the address is rounded down
+to the next page boundary. To determine the size of a page and the allocation granularity on the host computer, use the GetSystemInfo(3) function.
+.PP
+If this parameter is \fBNULL\fR, the system determines where to allocate the region.
+.PP
+If this address is within an enclave that you have not initialized by calling InitializeEnclave(3), \fBVirtualAlloc\fR allocates a page of zeros
+for the enclave at that address. The page must be previously uncommitted, and will not be measured with the EEXTEND instruction of the Intel
+Software Guard Extensions programming model.
+.PP
+If the address is within an enclave that you initialized, then the allocation operation fails with the \fBERROR_INVALID_ADDRESS\fR error.
+That is true for enclaves that do not support dynamic memory management (i.e. SGX1). SGX2 enclaves will permit allocation, and the page must be
+accepted by the enclave after it has been allocated.
+.RE
 
-\fIlpAddress\fR is a pointer to the base address of the region of pages to be freed.
-If \fIdwFreeType\fR parameter is \fBMEM_RELEASE\fR, this parameter must be the base address returned by VirtualAlloc () when the region
-of pages is reserved
+.SS dwSize
+The size of the region, in bytes. If the \fIlpAddress\fR parameter is \fBNULL\fR, this value is rounded up to the next page boundary. Otherwise,
+the allocated pages include all pages containing one or more bytes in the range from \fIlpAddress\fR to \fIlpAddress\fR+\fIdwSize\fR. This means that a 2-byte
+range straddling a page boundary causes both pages to be included in the allocated region.
 
+.SS flAllocationType
+The type of memory allocation. A page being \fBcommitted\fR must also be \fBreserved\fR. This parameter must contain one of the following values.
+.TS
+tab(;) allbox;
+l l.
+.\" --- ROW ---
+Value;Meaning
+.\" --- ROW ---
+T{
+MEM_COMMIT
+.br
+0x00001000
+T};T{
+Allocates memory charges (from the overall size of memory and the paging files on disk) for the specified reserved memory pages. The function also guarantees that when the caller later initially accesses the memory, the contents will be zero. Actual physical pages are not allocated unless/until the virtual addresses are actually accessed.
+
+To reserve and commit pages in one step, call VirtualAlloc with MEM_COMMIT | MEM_RESERVE.
+
+Attempting to commit a specific address range by specifying MEM_COMMIT without MEM_RESERVE and a non-NULL \fIlpAddress\fR fails unless the entire range has already been reserved. The resulting error code is ERROR_INVALID_ADDRESS.
+
+An attempt to commit a page that is already committed does not cause the function to fail. This means that you can commit pages without first determining the current commitment state of each page.
+
+If \fIlpAddress\fR specifies an address within an enclave, \fIflAllocationType\fR must be MEM_COMMIT.
+T}
+.\" --- ROW ---
+T{
+MEM_RESERVE
+.br
+0x00002000
+T};T{
+Reserves a range of the process's virtual address space without allocating any actual physical storage in memory or in the paging
+file on disk.
+
+You can commit reserved pages in subsequent calls to the VirtualAlloc(3) function. To reserve and commit pages in one step,
+call VirtualAlloc(3) with \fBMEM_COMMIT\fR | \fBMEM_RESERVE\fI.
+
+Other memory allocation functions, such as \fBmalloc\fR and LocalAlloc(3), cannot use a reserved range of memory until it is released.
+T}
+.\" --- ROW ---
+T{
+MEM_RESET
+.br
+0x00080000
+T};T{
+Indicates that data in the memory range specified by \fIlpAddress\fR and \fIdwSize\fR is no longer of interest. The pages should not be read from
+or written to the paging file. However, the memory block will be used again later, so it should not be decommitted. This value cannot be
+used with any other value.
+
+Using this value does not guarantee that the range operated on with \fBMEM_RESET\fR will contain zeros. If you want the range to contain zeros,
+decommit the memory and then recommit it.
+
+When you specify MEM_RESET, the VirtualAlloc(3) function ignores the value of \fIflProtect\fR. However, you must still set \fIflProtect\fR to a 
+valid protection value, such as \fBPAGE_NOACCESS\fR.
+
+VirtualAlloc(3) returns an error if you use \fBMEM_RESET\fR and the range of memory is mapped to a file. A shared view is only 
+acceptable if it is mapped to a paging file.
+T}
+.\" --- ROW ---
+T{
+MEM_RESET_UNDO
+.br
+0x1000000
+T};T{
+This should only be called on an address range to which \fBMEM_RESET\fR was successfully applied earlier. It indicates that the data 
+in the specified memory range specified by \fIlpAddress\fR and \fIdwSize\fR is of interest to the caller and attempts to reverse the 
+effects of \fBMEM_RESET\fR. If the function succeeds, that means all data in the specified address range is intact. If the function fails,
+at least some of the data in the address range has been replaced with zeroes.
+
+This value cannot be used with any other value. If \fBMEM_RESET_UNDO\fR is called on an address range which was not \fBMEM_RESET\fR earlier,
+the behavior is undefined. When you specify \fBMEM_RESET,\fR the VirtualAlloc(3) function ignores the value of \fIflProtect\fR. However,
+you must still set \fIflProtect\fR to a valid protection value, such as \fBPAGE_NOACCESS\fR.
+
+\fBWindows Server 2008 R2, Windows 7, Windows Server 2008, Windows Vista, Windows Server 2003 and Windows XP\fR: The \fBMEM_RESET_UNDO\fR flag
+is not supported until Windows 8 and Windows Server 2012.
+T}
+.TE
+
+This parameter can also specify the following values as indicated.
+
+.TS
+tab(;) allbox;
+l l.
+.\" --- ROW ---
+Value;Meaning
+.\" --- ROW ---
+T{
+MEM_LARGE_PAGES
+.br
+0x20000000
+T};T{
+Allocates memory using large page support.
+
+The size and alignment must be a multiple of the large-page minimum. To obtain this value, use the GetLargePageMinimum function.
+
+If you specify this value, you must also specify MEM_RESERVE and MEM_COMMIT.
+T}
+.\" --- ROW ---
+T{
+MEM_PHYSICAL
+.br
+0x00400000
+T};T{
+Reserves an address range that can be used to map Address Windowing Extensions (AWE) pages.
+
+This value must be used with \fBMEM_RESERVE\fR and no other values.
+T}
+.\" --- ROW ---
+T{
+MEM_TOP_DOWN
+.br
+0x00100000
+T};T{
+Allocates memory at the highest possible address. This can be slower than regular allocations, especially when there are many allocations.
+T}
+.\" --- ROW ---
+T{
+MEM_WRITE_WATCH
+.br
+0x00200000
+T};T{
+Causes the system to track pages that are written to in the allocated region. If you specify this value, you must also specify MEM_RESERVE.
+
+To retrieve the addresses of the pages that have been written to since the region was allocated or the write-tracking state was reset, call the GetWriteWatch(3) function. To reset the write-tracking state, call GetWriteWatch or ResetWriteWatch. The write-tracking feature remains enabled for the memory region until the region is freed.
+T}
+.TE
+
+.SS flProtect
+The memory protection for the region of pages to be allocated. If the pages are being committed, you can specify any one of the 
+memory protection constants. see MemoryProtectionConstants(3)
+
+If \fIlpAddress\fR specifies an address within an enclave, \fIflProtect\fR cannot be any of the following values:
+
+.IP \(bu
+PAGE_NOACCESS
+.IP \(bu
+PAGE_GUARD
+.IP \(bu
+PAGE_NOCACHE
+.IP \(bu
+PAGE_WRITECOMBINE
 .PP
+When allocating dynamic memory for an enclave, the \fIflProtect\fR parameter must be \fBPAGE_READWRITE\fR or \fBPAGE_EXECUTE_READWRITE\fR.
+
+.\" ================================================================
+.SH RETURN VALUE
+.\" ================================================================
+If the function succeeds, the return value is the base address of the allocated region of pages.
+
+If the function fails, the return value is \fBNULL\fR. To get extended error information, call GetLastError(3).
+
+.\" ================================================================
+.SH EXAMPLES
+.\" ================================================================
+
+.nf 
 .PP
-\fIdwSize\fR is the size of the region of memory to be freed, \fBin bytes\fR.
+.B #include <windows.h>
+.B #include <stdio.h>
+.B #include <tchar.h>
 .PP
-If the \fIdwFreeType\fR parameter is \fBMEM_RELEASE\fR, this parameter must be \fB0 (zero)\fR.
+int _tmain(int argc, \m[red]_TCHAR*\m[] argv[])
+{
+.RS
+LPVOID base = VirtualAlloc(NULL, 4096, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+_tprintf(TEXT("Allocated at %p\\n"), base);
+return 0;
+.RE
+}
+.fi
 
 .\" ================================================================
 .SH REQUIREMENTS
 .\" ================================================================
 .TS
 allbox;
-l l l.
-Header	Library	DLL
-memoryapi.h (include Windows.h, Memoryapi.h)	onecore.lib	Kernel32.dll
+l l.
+Minimum supported client	Windows XP [desktop apps | UWP apps]
+Minimum supported server	Windows Server 2003 [desktop apps | UWP apps]
+Target Platform	Windows
+Header	memoryapi.h (include Windows.h, Memoryapi.h)
+Library	onecore.lib
+DLL	Kernel32.dll
 .TE
 
 .\" ================================================================
